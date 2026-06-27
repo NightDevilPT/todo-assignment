@@ -1,0 +1,25 @@
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String    // Required for password-based login
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  tasks     Task[]
+  sessions  Session[]
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  refreshToken String   @unique // Long-lived token for refreshing the session
+  accessToken  String?  @unique // Optional tracking for the current active access token
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent    String?  // Tracks device/browser for security audits
+  ipAddress    String?  // Tracks IP address of the session creator
+  isRevoked    Boolean  @default(false) // Explicitly revoke/logout a session
+  expiresAt    DateTime // Expiration of the refresh token
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+}

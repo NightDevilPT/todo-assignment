@@ -3,11 +3,13 @@ import { withApiWrapper, withAuth, withRateLimit } from "@/middleware";
 import { getUserTasks, createTask } from "@/lib/tasks";
 import { AppError } from "@/middleware/apiWrapper";
 import { HttpStatus, ErrorCode } from "@/interfaces/api.interface";
+import { createTaskSchema } from "@/lib/tasks/validation";
+import { config } from "@/lib/config";
 
 // GET /api/tasks: Retrieve all tasks of the authenticated user (supports pagination)
 export const GET = withApiWrapper(
   withAuth(
-    withRateLimit({ windowMs: 60 * 1000, max: 60 })( // Limit: 60 read requests per minute
+    withRateLimit(config.rateLimits.tasks.get)(
       async (request: NextRequest, context: any) => {
         const userId = context?.user?.id;
 
@@ -51,7 +53,7 @@ export const GET = withApiWrapper(
 // POST /api/tasks: Create a new task for the authenticated user
 export const POST = withApiWrapper(
   withAuth(
-    withRateLimit({ windowMs: 60 * 1000, max: 30 })( // Limit: 30 task creations per minute
+    withRateLimit(config.rateLimits.tasks.create)(
       async (request: NextRequest, context: any) => {
         const userId = context?.user?.id;
 
@@ -74,8 +76,18 @@ export const POST = withApiWrapper(
           );
         }
 
-        const { title, description } = body;
-        const task = await createTask(userId, { title, description });
+        const validationResult = createTaskSchema.safeParse(body);
+        if (!validationResult.success) {
+          const firstError = validationResult.error.issues[0]?.message || "Validation failed.";
+          throw new AppError(
+            HttpStatus.BAD_REQUEST,
+            ErrorCode.VALIDATION_ERROR,
+            firstError
+          );
+        }
+
+        const { title, description } = validationResult.data;
+        const task = await createTask(userId, { title, description: description ?? undefined });
 
         return {
           data: task,

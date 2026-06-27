@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
-import { AlertCircle, Trash2, FileText, AlignLeft, Tag, Check, X } from "lucide-react";
+import { AlertCircle, FileText, AlignLeft, Tag, Check, X } from "lucide-react";
 
 interface TaskDialogProps {
   isOpen: boolean;

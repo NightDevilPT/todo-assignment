@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withApiWrapper, withAuth } from "@/middleware";
 import { revokeSession } from "@/lib/auth";
 import { HttpStatus } from "@/interfaces/api.interface";
+import { config } from "@/lib/config";
 
 // POST /api/auth/logout: Revoke DB session and clear cookies
 export const POST = withApiWrapper(
@@ -40,7 +41,7 @@ export const POST = withApiWrapper(
       // Invalidate cookies by setting empty values and maxAge to 0
       response.cookies.set("access_token", "", {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: config.isProduction,
         sameSite: "lax",
         path: "/",
         maxAge: 0,
@@ -48,7 +49,7 @@ export const POST = withApiWrapper(
 
       response.cookies.set("refresh_token", "", {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: config.isProduction,
         sameSite: "lax",
         path: "/",
         maxAge: 0,

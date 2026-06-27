@@ -1,7 +1,8 @@
 import jwt from "jsonwebtoken";
+import { config } from "../config";
 
-const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "dev_access_secret_key_12345";
-const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "dev_refresh_secret_key_67890";
+const ACCESS_SECRET = config.jwt.accessSecret;
+const REFRESH_SECRET = config.jwt.refreshSecret;
 
 export interface AccessTokenPayload {
   userId: string;
@@ -17,14 +18,16 @@ export interface RefreshTokenPayload {
  * Sign a new short-lived Access Token (expires in 15 minutes)
  */
 export function signAccessToken(payload: AccessTokenPayload): string {
-  return jwt.sign(payload, ACCESS_SECRET, { expiresIn: "15m" });
+  const expiry = config.jwt.accessExpiry;
+  return jwt.sign(payload, ACCESS_SECRET, { expiresIn: expiry });
 }
 
 /**
- * Sign a new long-lived Refresh Token (expires in 7 days)
+ * Sign a new long-lived Refresh Token (expires in 20 minutes)
  */
 export function signRefreshToken(payload: RefreshTokenPayload): string {
-  return jwt.sign(payload, REFRESH_SECRET, { expiresIn: "7d" });
+  const expiry = config.jwt.refreshExpiry;
+  return jwt.sign(payload, REFRESH_SECRET, { expiresIn: expiry });
 }
 
 /**

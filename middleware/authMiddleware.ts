@@ -3,6 +3,7 @@ import { HttpStatus, ErrorCode } from "@/interfaces/api.interface";
 import { verifyAccessToken } from "@/lib/jwt";
 import { refreshSession } from "@/lib/auth";
 import { AppError, RouteHandler } from "./apiWrapper";
+import { config } from "@/lib/config";
 
 /**
  * Route Auth Middleware: Wraps Next.js route handlers to enforce authentication.
@@ -133,11 +134,12 @@ export function withAuth(handler: RouteHandler): RouteHandler {
       }
 
       // Attach new short-lived access token cookie
+      const accessMaxAge = config.jwt.accessMaxAge;
       response.cookies.set("access_token", newAccessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: config.isProduction,
         sameSite: "lax",
-        maxAge: 15 * 60, // 15 minutes
+        maxAge: accessMaxAge,
         path: "/",
       });
 

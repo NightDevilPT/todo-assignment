@@ -3,9 +3,11 @@ import { withApiWrapper, withRateLimit } from "@/middleware";
 import { AppError } from "@/middleware/apiWrapper";
 import { loginUser } from "@/lib/auth";
 import { HttpStatus, ErrorCode } from "@/interfaces/api.interface";
+import { loginSchema } from "@/lib/user/validation";
+import { config } from "@/lib/config";
 
 export const POST = withApiWrapper(
-  withRateLimit({ windowMs: 60 * 1000, max: 15 })( // Limit: 15 login attempts per IP per minute
+  withRateLimit(config.rateLimits.login)(
     async (request: NextRequest) => {
       const handlerStartTime = Date.now();
 
@@ -20,15 +22,17 @@ export const POST = withApiWrapper(
         );
       }
 
-      const { email, password } = body;
-
-      if (!email || !password) {
+      const validationResult = loginSchema.safeParse(body);
+      if (!validationResult.success) {
+        const firstError = validationResult.error.issues[0]?.message || "Validation failed.";
         throw new AppError(
           HttpStatus.BAD_REQUEST,
           ErrorCode.VALIDATION_ERROR,
-          "Email and password are required fields."
+          firstError
         );
       }
+
+      const { email, password } = validationResult.data;
 
       const userAgent = request.headers.get("user-agent") || undefined;
       const ipAddress =
@@ -59,14 +63,16 @@ export const POST = withApiWrapper(
         { status: HttpStatus.OK }
       );
 
-      const isProduction = process.env.NODE_ENV === "production";
+      const isProduction = config.isProduction;
+      const accessMaxAge = config.jwt.accessMaxAge;
+      const refreshMaxAge = config.jwt.refreshMaxAge;
 
       // Set Secure HTTP-Only Cookies
       response.cookies.set("access_token", authResult.accessToken, {
         httpOnly: true,
         secure: isProduction,
         sameSite: "lax",
-        maxAge: 15 * 60, // 15 minutes
+        maxAge: accessMaxAge,
         path: "/",
       });
 
@@ -74,7 +80,7 @@ export const POST = withApiWrapper(
         httpOnly: true,
         secure: isProduction,
         sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60, // 7 days
+        maxAge: refreshMaxAge,
         path: "/",
       });
 

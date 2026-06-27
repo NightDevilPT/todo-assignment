@@ -3,9 +3,11 @@ import { withApiWrapper, withRateLimit } from "@/middleware";
 import { AppError } from "@/middleware/apiWrapper";
 import { registerUser } from "@/lib/auth";
 import { HttpStatus, ErrorCode } from "@/interfaces/api.interface";
+import { signupSchema } from "@/lib/user/validation";
+import { config } from "@/lib/config";
 
 export const POST = withApiWrapper(
-  withRateLimit({ windowMs: 60 * 1000, max: 10 })( // Limit: 10 signups per IP per minute
+  withRateLimit(config.rateLimits.signup)(
     async (request: NextRequest) => {
       let body;
       try {
@@ -18,15 +20,17 @@ export const POST = withApiWrapper(
         );
       }
 
-      const { email, password } = body;
-
-      if (!email || !password) {
+      const validationResult = signupSchema.safeParse(body);
+      if (!validationResult.success) {
+        const firstError = validationResult.error.issues[0]?.message || "Validation failed.";
         throw new AppError(
           HttpStatus.BAD_REQUEST,
           ErrorCode.VALIDATION_ERROR,
-          "Email and password are required fields."
+          firstError
         );
       }
+
+      const { email, password } = validationResult.data;
 
       const user = await registerUser(email, password);
 

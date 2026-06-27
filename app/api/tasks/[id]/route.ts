@@ -3,11 +3,13 @@ import { withApiWrapper, withAuth, withRateLimit } from "@/middleware";
 import { updateTask, deleteTask } from "@/lib/tasks";
 import { AppError } from "@/middleware/apiWrapper";
 import { HttpStatus, ErrorCode } from "@/interfaces/api.interface";
+import { updateTaskSchema } from "@/lib/tasks/validation";
+import { config } from "@/lib/config";
 
 // PATCH /api/tasks/[id]: Update a specific task's title, description, or status
 export const PATCH = withApiWrapper(
   withAuth(
-    withRateLimit({ windowMs: 60 * 1000, max: 40 })( // Limit: 40 update requests per minute
+    withRateLimit(config.rateLimits.tasks.update)(
       async (request: NextRequest, context: any) => {
         const userId = context?.user?.id;
 
@@ -19,7 +21,7 @@ export const PATCH = withApiWrapper(
           );
         }
 
-        // Await context params for compatibility with Next.js 15+ asynchronous routing contexts
+        // Await dynamic route parameters
         const params = await context.params;
         const taskId = params.id;
 
@@ -34,8 +36,22 @@ export const PATCH = withApiWrapper(
           );
         }
 
-        const { title, description, status } = body;
-        const updated = await updateTask(userId, taskId, { title, description, status });
+        const validationResult = updateTaskSchema.safeParse(body);
+        if (!validationResult.success) {
+          const firstError = validationResult.error.issues[0]?.message || "Validation failed.";
+          throw new AppError(
+            HttpStatus.BAD_REQUEST,
+            ErrorCode.VALIDATION_ERROR,
+            firstError
+          );
+        }
+
+        const { title, description, status } = validationResult.data;
+        const updated = await updateTask(userId, taskId, {
+          title,
+          description: description ?? undefined,
+          status,
+        });
 
         return {
           data: updated,
@@ -50,7 +66,7 @@ export const PATCH = withApiWrapper(
 // DELETE /api/tasks/[id]: Delete a specific task
 export const DELETE = withApiWrapper(
   withAuth(
-    withRateLimit({ windowMs: 60 * 1000, max: 20 })( // Limit: 20 delete requests per minute
+    withRateLimit(config.rateLimits.tasks.delete)(
       async (request: NextRequest, context: any) => {
         const userId = context?.user?.id;
 
@@ -62,7 +78,7 @@ export const DELETE = withApiWrapper(
           );
         }
 
-        // Await context params for Next.js 15+ compatibility
+        // Await dynamic route parameters
         const params = await context.params;
         const taskId = params.id;
 
